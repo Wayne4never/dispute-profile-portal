@@ -13,14 +13,15 @@
 <h1>公开纠纷与关系检索台</h1>
 <div class="muted">输入中国大陆公司、品牌、人物或案号，实时检索公开网页并按证据类型整理。求府只是测试样例，不是固定数据库。</div>
 <div class="search"><input id="q" placeholder="例如：上海某某科技有限公司 / 张三 某公司 / (2023)沪02民终9951号"/><button id="go">检索</button></div>
-<div class="settings">后端 API：<input id="api" placeholder="部署后填入 Worker 地址，例如 https://xxx.workers.dev"/></div>
+<div class="settings">后端 API：<input id="api" value="https://dispute-profile-portal.x2338052806.workers.dev" /></div>
 </section>
 <div class="bar"><span class="chip">法院/判决</span><span class="chip">执行风险</span><span class="chip">政府/监管</span><span class="chip">工商线索</span><span class="chip">新闻/官网</span><span class="chip">人物关系</span><span id="status" class="status muted">等待检索</span></div>
-<div id="out"><div class="card empty">部署 Worker 后，在上方填一次 API 地址；浏览器会自动记住。</div></div>
+<div id="out"><div class="card empty">已连接 Cloudflare Worker。输入公司、人物或案号即可检索。</div></div>
 </div>
 <script>
+const DEFAULT_API='https://dispute-profile-portal.x2338052806.workers.dev';
 const $=s=>document.querySelector(s);const q=$('#q'),api=$('#api'),out=$('#out'),status=$('#status');
-api.value=localStorage.getItem('backend_api')||'';api.addEventListener('change',()=>localStorage.setItem('backend_api',api.value.trim().replace(/\/$/,'')));
+api.value=localStorage.getItem('backend_api')||DEFAULT_API;api.addEventListener('change',()=>localStorage.setItem('backend_api',api.value.trim().replace(/\/$/,'')));
 function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function render(data){
  const results=data.results||[], counts=data.counts||{}, timeline=data.timeline||[];
@@ -28,6 +29,6 @@ function render(data){
  <div class="grid"><div class="card"><div class="title">公开证据</div>${results.length?results.map(r=>`<div class="item"><div><span class="tag">${esc(r.category)}</span><span class="tag">${esc(r.authority)}</span><span class="score">${esc(r.confidence)}</span></div><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.title)}</a><div>${esc(r.snippet||'')}</div><div class="source">${esc(r.domain||'')}</div></div>`).join(''):'<div class="empty">未找到可用结果</div>'}</div>
  <div><div class="card"><div class="title">时间线</div>${timeline.length?`<div class="timeline">${timeline.map(t=>`<div class="t"><b>${esc(t.date)}</b><br>${esc(t.title)}</div>`).join('')}</div>`:'<div class="empty">暂未抽取到明确日期</div>'}</div><div class="card"><div class="title">证据边界</div><div class="notice">本工具仅整理公开网页线索。搜索结果不等于事实认定；人物同名需结合公司、地区、职位、时间交叉确认。论坛和自媒体只作为线索，不能单独作为负面事实依据。不会尝试获取身份证号、家庭住址、私人手机号或实时位置。</div></div></div></div>`
 }
-async function run(){const term=q.value.trim(); if(!term)return; const base=api.value.trim().replace(/\/$/,'');localStorage.setItem('backend_api',base);if(!base){status.textContent='请先填写 Worker API 地址';status.className='status err';return}status.textContent='正在检索公开来源…';status.className='status warn';out.innerHTML='<div class="card empty">正在查询，通常需要几秒钟。</div>';try{const r=await fetch(`${base}/api/search?q=${encodeURIComponent(term)}`);if(!r.ok)throw new Error(`HTTP ${r.status}`);const data=await r.json();render(data);status.textContent=`完成：${(data.results||[]).length} 条公开结果`;status.className='status ok'}catch(e){status.textContent='查询失败';status.className='status err';out.innerHTML=`<div class="card"><b>后端连接失败：</b>${esc(e.message)}<br><span class="muted">确认 Worker 已部署，并检查 API 地址。</span></div>`}}
+async function run(){const term=q.value.trim(); if(!term)return; const base=api.value.trim().replace(/\/$/,'')||DEFAULT_API;localStorage.setItem('backend_api',base);if(!base){status.textContent='请先填写 Worker API 地址';status.className='status err';return}status.textContent='正在检索公开来源…';status.className='status warn';out.innerHTML='<div class="card empty">正在查询，通常需要几秒钟。</div>';try{const r=await fetch(`${base}/api/search?q=${encodeURIComponent(term)}`);if(!r.ok)throw new Error(`HTTP ${r.status}`);const data=await r.json();render(data);status.textContent=`完成：${(data.results||[]).length} 条公开结果`;status.className='status ok'}catch(e){status.textContent='查询失败';status.className='status err';out.innerHTML=`<div class="card"><b>后端连接失败：</b>${esc(e.message)}<br><span class="muted">确认 Worker 已部署，并检查 API 地址。</span></div>`}}
 $('#go').onclick=run;q.addEventListener('keydown',e=>{if(e.key==='Enter')run()});
 </script></body></html>
